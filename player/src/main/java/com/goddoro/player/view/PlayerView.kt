@@ -2,7 +2,9 @@ package com.goddoro.player.view
 
 import android.content.Context
 import android.graphics.SurfaceTexture
+import android.media.MediaSync
 import android.util.AttributeSet
+import android.util.Log
 import android.view.Surface
 import android.view.TextureView
 import com.goddoro.player.MainPlayer
@@ -23,7 +25,9 @@ class PlayerView @JvmOverloads constructor(
     private val doroPlayer = MainPlayer(context)
 
     init {
-        this.surfaceTextureListener = object : TextureView.SurfaceTextureListener{
+
+
+        this.surfaceTextureListener = object : SurfaceTextureListener{
             override fun onSurfaceTextureSizeChanged(
                 surface: SurfaceTexture,
                 width: Int,
@@ -37,6 +41,7 @@ class PlayerView @JvmOverloads constructor(
                 width: Int,
                 height: Int
             ) {
+                Log.d("TEST","createVideoThread")
                 doroPlayer.createVideoThread ( Surface(surface))
             }
 

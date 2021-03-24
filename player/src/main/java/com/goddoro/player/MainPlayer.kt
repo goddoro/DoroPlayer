@@ -5,8 +5,8 @@ import android.graphics.SurfaceTexture
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
-import android.os.Build
-import android.os.Bundle
+import android.media.MediaSync
+import android.os.*
 import android.util.Log
 import android.view.Surface
 import android.view.TextureView
@@ -21,14 +21,16 @@ import kotlin.coroutines.coroutineContext
 
 class MainPlayer ( val context : Context){
 
-    private val MEDIA_FILE = "sample_video.mp4"
+    private val SAMPLE_FILE_URL = "https://cdn.onesongtwoshows.com/video/ty2h2kqfgl8_1615804303890.mp4"
     private val TIMEOUT_US = 10_000L
 
+    var count = 0
+
+    var beforePresentationTime : Long  = 0
 
     fun createVideoThread(surface: Surface) = thread {
-        val extractor =  context.assets.openFd(MEDIA_FILE).use {
-            MediaExtractor().apply { setDataSource(it) }
-        }
+        val extractor = MediaExtractor().apply { setDataSource(SAMPLE_FILE_URL) }
+
 
         val trackIndex = extractor.firstVideoTrack
             ?: error("This media file doesn't contain any video tracks")
@@ -49,6 +51,7 @@ class MainPlayer ( val context : Context){
         decoder.stop()
         decoder.release()
         extractor.release()
+
     }
 
     private fun doExtract(extractor: MediaExtractor, decoder: MediaCodec) {
@@ -72,7 +75,8 @@ class MainPlayer ( val context : Context){
                         } else {
                             val sampleTimeUs = extractor.sampleTime
 
-                            decoder.queueInputBuffer(inputIndex, 0, chunkSize, sampleTimeUs, 0)
+                            decoder.queueInputBuffer(inputIndex, 0, chunkSize, sampleTimeUs , 0)
+
                             extractor.advance()
                         }
                     }
@@ -87,16 +91,30 @@ class MainPlayer ( val context : Context){
                             decoder.releaseOutputBuffer(outputIndex, false)
                             outEos = true
                         } else {
-                            decoder.releaseOutputBuffer(outputIndex, true)
+                            val difference = ( info.presentationTimeUs - beforePresentationTime ) / 1000
+                            decoder.releaseOutputBuffer(outputIndex,true)
+                            Thread.sleep(difference)
+
+                            Log.d("TEST",difference.toString())
+                            beforePresentationTime = info.presentationTimeUs
+
                         }
                     }
-                    MediaCodec.INFO_TRY_AGAIN_LATER -> Unit
-                    MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> Unit
-                    MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED -> Unit
+                    MediaCodec.INFO_TRY_AGAIN_LATER -> {
+                        Log.d("TEST","a")
+                    }
+                    MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                        Log.d("TEST","b")
+                    }
+                    MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED -> {
+                        Log.d("TEST","C")
+                    }
                     else -> error("unexpected result from decoder.dequeueOutputBuffer: $outputIndex")
                 }
             }
         }
+
+        Log.d("TEST",count.toString())
     }
 
     fun MediaExtractor.findFirstTrackFor(type: String): Int? {
@@ -110,9 +128,12 @@ class MainPlayer ( val context : Context){
         return null
     }
 
+
+
     val MediaExtractor.firstVideoTrack: Int? get() = findFirstTrackFor("video/")
     val MediaExtractor.firstAudioTrack: Int? get() = findFirstTrackFor("audio/")
 
 
 
 }
+
