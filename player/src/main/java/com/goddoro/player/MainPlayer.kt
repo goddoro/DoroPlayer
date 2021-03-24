@@ -1,19 +1,15 @@
 package com.goddoro.player
 
 import android.content.Context
-import android.graphics.SurfaceTexture
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
-import android.media.MediaSync
-import android.os.*
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.Surface
-import android.view.TextureView
-import androidx.annotation.RequiresApi
-import com.goddoro.player.view.PlayerView
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
-import kotlin.coroutines.coroutineContext
 
 /**
  * Created by goddoro on 2021-03-24.
@@ -91,23 +87,22 @@ class MainPlayer ( val context : Context){
                             decoder.releaseOutputBuffer(outputIndex, false)
                             outEos = true
                         } else {
-                            val difference = ( info.presentationTimeUs - beforePresentationTime ) / 1000
-                            decoder.releaseOutputBuffer(outputIndex,true)
-                            Thread.sleep(difference)
+                            val difference = ( info.presentationTimeUs - beforePresentationTime )
 
-                            Log.d("TEST",difference.toString())
+                            TimeUnit.MICROSECONDS.sleep(difference)
+                            decoder.releaseOutputBuffer(outputIndex,true)
                             beforePresentationTime = info.presentationTimeUs
 
                         }
                     }
                     MediaCodec.INFO_TRY_AGAIN_LATER -> {
-                        Log.d("TEST","a")
+
                     }
                     MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
-                        Log.d("TEST","b")
+
                     }
                     MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED -> {
-                        Log.d("TEST","C")
+
                     }
                     else -> error("unexpected result from decoder.dequeueOutputBuffer: $outputIndex")
                 }

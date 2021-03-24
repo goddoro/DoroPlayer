@@ -41,7 +41,6 @@ class PlayerView @JvmOverloads constructor(
                 width: Int,
                 height: Int
             ) {
-                Log.d("TEST","createVideoThread")
                 doroPlayer.createVideoThread ( Surface(surface))
             }
 
