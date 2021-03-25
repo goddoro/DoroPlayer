@@ -6,6 +6,7 @@ import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.view.Surface
 import java.util.concurrent.TimeUnit
@@ -21,6 +22,8 @@ class MainPlayer ( val context : Context){
     private val TIMEOUT_US = 10_000L
 
     var count = 0
+
+    var startTimeMs = -1L
 
     var beforePresentationTime : Long  = 0
 
@@ -87,12 +90,21 @@ class MainPlayer ( val context : Context){
                             decoder.releaseOutputBuffer(outputIndex, false)
                             outEos = true
                         } else {
-                            val difference = ( info.presentationTimeUs - beforePresentationTime )
 
-                            TimeUnit.MICROSECONDS.sleep(difference)
+                            val curTimeUs = SystemClock.uptimeMillis() * 1000
+                            if ( startTimeMs < 0 ) {
+                                startTimeMs = curTimeUs
+                            }
+
+                            val curPtsUs = curTimeUs - startTimeMs
+
+                            val sleepTimeMs = info.presentationTimeUs - curPtsUs
+
+                            if ( sleepTimeMs > 0 ) {
+                                TimeUnit.MICROSECONDS.sleep(sleepTimeMs)
+                            }
+
                             decoder.releaseOutputBuffer(outputIndex,true)
-                            beforePresentationTime = info.presentationTimeUs
-
                         }
                     }
                     MediaCodec.INFO_TRY_AGAIN_LATER -> {
