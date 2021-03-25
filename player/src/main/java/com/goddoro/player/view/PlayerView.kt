@@ -1,83 +1,44 @@
 package com.goddoro.player.view
 
+import DoroPlayer
 import android.content.Context
-import android.graphics.SurfaceTexture
-import android.media.MediaSync
 import android.util.AttributeSet
-import android.util.Log
-import android.view.Surface
+import android.view.LayoutInflater
 import android.view.TextureView
-import com.goddoro.player.MainPlayer
+import androidx.constraintlayout.widget.ConstraintLayout
+import com.goddoro.player.R
+import com.goddoro.player.databinding.LayoutPlayerViewBinding
 
 /**
- * Created by goddoro on 2021-03-24.
+ * Created by goddoro on 2021-03-25.
  */
 
 class PlayerView @JvmOverloads constructor(
-    context: Context,
-    attrs: AttributeSet? = null,
-    defStyle: Int = 0
-) : TextureView(context, attrs, defStyle) {
+        context: Context,
+        val attrs: AttributeSet? = null
+) : ConstraintLayout(context, attrs) {
 
-    private var ratioWidth = 0
-    private var ratioHeight = 0
-
-    private val doroPlayer = MainPlayer(context)
-
+    private var mBinding : LayoutPlayerViewBinding
     init {
 
+        val layoutInflateService = Context.LAYOUT_INFLATER_SERVICE
+        val layoutInflater = context.getSystemService(layoutInflateService) as LayoutInflater
 
-        this.surfaceTextureListener = object : SurfaceTextureListener{
-            override fun onSurfaceTextureSizeChanged(
-                surface: SurfaceTexture,
-                width: Int,
-                height: Int
-            ) = Unit
+        mBinding = LayoutPlayerViewBinding.inflate(layoutInflater,this,false)
+        addView(mBinding.root)
 
-            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) = Unit
-            override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean = true
-            override fun onSurfaceTextureAvailable(
-                surface: SurfaceTexture,
-                width: Int,
-                height: Int
-            ) {
-                doroPlayer.createVideoThread ( Surface(surface))
-            }
+        initSetting()
 
+    }
 
+    private fun initSetting() {
+
+        mBinding.btnPlay.setOnClickListener {
+            mBinding.playerTextureView.start()
         }
     }
 
-    /**
-     * Sets the aspect ratio for this view. The size of the view will be measured based on the ratio
-     * calculated from the parameters. Note that the actual sizes of parameters don't matter, that
-     * is, calling setAspectRatio(2, 3) and setAspectRatio(4, 6) make the same result.
-     *
-     * @param width  Relative horizontal size
-     * @param height Relative vertical size
-     */
-    fun setAspectRatio(width: Int, height: Int) {
-        if (width < 0 || height < 0) {
-            throw IllegalArgumentException("Size cannot be negative.")
-        }
-        ratioWidth = width
-        ratioHeight = height
-        requestLayout()
-    }
 
-    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-        val width = MeasureSpec.getSize(widthMeasureSpec)
-        val height = MeasureSpec.getSize(heightMeasureSpec)
-        if (ratioWidth == 0 || ratioHeight == 0) {
-            setMeasuredDimension(width, height)
-        } else {
-            if (width < ((height * ratioWidth) / ratioHeight)) {
-                setMeasuredDimension(width, (width * ratioHeight) / ratioWidth)
-            } else {
-                setMeasuredDimension((height * ratioWidth) / ratioHeight, height)
-            }
-        }
-    }
+
 
 }
