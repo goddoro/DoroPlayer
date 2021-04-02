@@ -36,6 +36,14 @@ class PlayerView @JvmOverloads constructor(
         mBinding.btnPlay.setOnClickListener {
             mBinding.playerTextureView.start()
         }
+
+        mBinding.btnPause.setOnClickListener {
+            mBinding.playerTextureView.pause()
+        }
+//
+//        mBinding.progress.max = mBinding.playerTextureView.getDuration()
+//        mBinding.txtEnd.text = mBinding.playerTextureView.getDuration().toString()
+
     }
 
 

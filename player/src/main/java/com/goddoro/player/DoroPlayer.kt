@@ -6,6 +6,7 @@ import android.os.HandlerThread
 import android.os.SystemClock
 import android.util.Log
 import android.view.Surface
+import androidx.lifecycle.MutableLiveData
 import com.goddoro.player.extensions.firstAudioTrack
 import com.goddoro.player.extensions.firstVideoTrack
 import java.nio.ByteBuffer
@@ -25,13 +26,13 @@ import kotlin.math.min
 
 class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, val context : Context) {
 
-
-    private val TIMEOUT_MS = 10L
-
     enum class SeekMode {
         PREVIOUS_SYNC,
-        NEXT_SYNC
+        NEXT_SYNC,
+        CLOSEST_SYNC
     }
+
+    val isPlayingVideo : MutableLiveData<Boolean> = MutableLiveData()
 
     private val audioExtractor: MediaExtractor
     private val videoExtractor: MediaExtractor
@@ -46,6 +47,10 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, v
     private var videoOutEos = false
     private val audioBufferInfo = MediaCodec.BufferInfo()
     private val videoBufferInfo = MediaCodec.BufferInfo()
+
+    var demuxCount = 0
+    var decodeCount = 0
+    var renderCount = 0
 
     init {
         val extractor = extractorSupplier()
@@ -115,6 +120,9 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, v
         get() = if (startTimeMs < 0) {
             startTimeMs
         } else {
+
+            Log.d("POSITION",SystemClock.uptimeMillis().toString())
+            Log.d("POSITION",startTimeMs.toString())
             SystemClock.uptimeMillis() - startTimeMs
         }
 
@@ -152,6 +160,9 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, v
     }
 
     fun play() = synchronized(this) {
+
+        isPlayingVideo.value = true
+
         audioInEos = false
         audioOutEos = false
         videoInEos = false
@@ -170,10 +181,12 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, v
     }
 
     private fun postExtractAudio(delayMillis: Long) {
+        Log.d("TEST","postExtractAudio")
         demuxHandler.postDelayed({
             if (!audioInEos) {
                 when (val inputIndex = audioDecoder.dequeueInputBuffer(0)) {
                     in 0..Int.MAX_VALUE -> {
+
                         val inputBuffer = audioDecoder.getInputBuffer(inputIndex)!!
                         val chunkSize = audioExtractor.readSampleData(inputBuffer, 0)
                         if (chunkSize < 0) {
@@ -196,6 +209,7 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, v
     }
 
     private fun postDecodeAudio(delayMillis: Long) {
+        Log.d("TEST","postDecodeAudio")
         audioDecodeHandler.postDelayed({
             if (!audioOutEos) {
                 when (val outputIndex = audioDecoder.dequeueOutputBuffer(audioBufferInfo, 0)) {
@@ -228,10 +242,12 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, v
     }
 
     private fun postExtractVideo(delayMillis: Long) {
+        Log.d("TEST","postExtractVideo")
         demuxHandler.postDelayed({
             if (!videoInEos) {
                 when (val inputIndex = videoDecoder.dequeueInputBuffer(0)) {
                     in 0..Int.MAX_VALUE -> {
+                        demuxCount++
                         val inputBuffer = videoDecoder.getInputBuffer(inputIndex)!!
                         val chunkSize = videoExtractor.readSampleData(inputBuffer, 0)
                         if (chunkSize < 0) {
@@ -262,6 +278,7 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, v
                             videoDecoder.releaseOutputBuffer(outputIndex, false)
                             videoOutEos = true
                         } else {
+                            decodeCount++
                             queueVideo(outputIndex, videoBufferInfo.presentationTimeUs)
                         }
 
@@ -319,6 +336,10 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, v
 
     private fun postRenderVideoAtTime(videoFrame: VideoFrame, uptimeMillis: Long) {
         videoRenderHandler.postAtTime({
+            renderCount++
+
+            Log.d("GOOD","RENDER COUNT = ${videoFrame.ptsUs}")
+
             Log.d("TEST", "[${SystemClock.uptimeMillis() - startTimeMs}] video render ${videoFrame.ptsUs / 1000}, ${videoFrame.bufferId}")
             videoDecoder.releaseOutputBuffer(videoFrame.bufferId, true)
         }, uptimeMillis)
@@ -343,6 +364,9 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, v
             val audioFrame: AudioFrame? = audioFrameQueue.peek()
             val videoFrame: VideoFrame? = videoFrameQueue.peek()
 
+            Log.d("TEST",audioFrame.toString())
+            Log.d("TEST",videoFrame.toString())
+
             if (audioFrame == null && videoFrame == null) {
                 return@postDelayed
             }
@@ -356,6 +380,9 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, v
 
                 val startPtsUs = min(audioFrame.ptsUs, videoFrame.ptsUs)
                 startTimeMs = curTimeMs - startPtsUs / 1000L
+
+                Log.d("startTimeMs", curTimeMs.toString())
+                Log.d("startTimeMs", startPtsUs.toString())
 
                 val audioDelayMs = audioFrame.ptsUs / 1000L - (curTimeMs - startTimeMs)
                 val videoDelayMs = videoFrame.ptsUs / 1000L - (curTimeMs - startTimeMs)
@@ -388,10 +415,44 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, v
     }
 
     fun seekTo(msec: Long, mode: SeekMode) = synchronized(this) {
+        pause()
         val seekPositionUs = min(max(msec, 0), duration) * 1000L
 
+        val flag = when (mode) {
+            SeekMode.PREVIOUS_SYNC -> MediaExtractor.SEEK_TO_PREVIOUS_SYNC
+            SeekMode.NEXT_SYNC -> MediaExtractor.SEEK_TO_NEXT_SYNC
+            SeekMode.CLOSEST_SYNC -> MediaExtractor.SEEK_TO_CLOSEST_SYNC
+        }
+
+
+        videoExtractor.seekTo(seekPositionUs, flag)
+        videoExtractor.advance()
+
+        val sampleTimeUs = videoExtractor.sampleTime
+        audioExtractor.seekTo(sampleTimeUs, flag)
+        audioExtractor.advance()
+
+        startTimeMs = -1L
+
+        audioInEos = false
+        videoInEos = false
+        audioOutEos = false
+        videoOutEos = false
+
+        postExtractAudio(0)
+        postExtractVideo(0)
+        postDecodeAudio(0)
+        postDecodeVideo(0)
+    }
+
+    fun pause() = synchronized(this) {
+
+        isPlayingVideo.value = false
         val barrier = CyclicBarrier(6)
         val latch = CountDownLatch(6)
+
+        Log.d("TEST","PAUSE BEFORE AUDIO " + audioRenderHandler.looper.queue.isIdle)
+        Log.d("TEST","PAUSE BEFPRE VIDEO " + videoRenderHandler.looper.queue.isIdle)
 
         demuxHandler.postAtFrontOfQueue {
             barrier.await()
@@ -428,31 +489,39 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, v
 
         videoDecoder.flush()
         audioDecoder.flush()
-        audioTrack.pause()
-        audioTrack.flush()
+        Log.d("TEST","PAUSE AUDIO " + audioRenderHandler.looper.queue.isIdle)
+        Log.d("TEST","PAUSE VIDEO " + videoRenderHandler.looper.queue.isIdle)
+//        audioTrack.pause()
+//        audioTrack.flush()
+//
+//        audioFrameQueue.clear()
+//        videoFrameQueue.clear()
 
-        audioFrameQueue.clear()
-        videoFrameQueue.clear()
+        Log.d("TEST", "demux count = $demuxCount")
+        Log.d("TEST", "decode count = $decodeCount")
+        Log.d("TEST","render count = $renderCount")
 
-        val flag = when (mode) {
-            SeekMode.PREVIOUS_SYNC -> MediaExtractor.SEEK_TO_PREVIOUS_SYNC
-            SeekMode.NEXT_SYNC -> MediaExtractor.SEEK_TO_NEXT_SYNC
-        }
-        videoExtractor.seekTo(seekPositionUs, flag)
-        val sampleTimeUs = videoExtractor.sampleTime
-        audioExtractor.seekTo(sampleTimeUs, flag)
 
+
+    }
+
+    fun restart() = synchronized(this) {
+
+
+//        val curPosition = (SystemClock.currentThreadTimeMillis() - startTimeMs) * 1000
+
+//        audioFrameQueue.clear()
+//        videoFrameQueue.clear()
+//
         startTimeMs = -1L
-
-        audioInEos = false
-        videoInEos = false
-        audioOutEos = false
-        videoOutEos = false
 
         postExtractAudio(0)
         postExtractVideo(0)
         postDecodeAudio(0)
         postDecodeVideo(0)
+
+
+
     }
 
     fun release() = synchronized(this) {
@@ -497,5 +566,6 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, v
         videoExtractor.release()
         audioTrack.release()
     }
+
 }
 

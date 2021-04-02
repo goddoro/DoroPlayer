@@ -66,19 +66,26 @@ class PlayerTextureView @JvmOverloads constructor(
             MediaExtractor().apply { setDataSource(SAMPLE_FILE_URL) }
         }, surface, context)
 
+        doroPlayer?.play()
+
     }
 
-    private fun playOrStop( ) {
+    private fun playOrRestart( ) {
         if (doroPlayer == null) {
             doroPlayer = DoroPlayer({
                 MediaExtractor().apply { setDataSource(SAMPLE_FILE_URL) }
             }, surface, context)
 
             doroPlayer?.play()
-        } else {
+        }
+        else if ( doroPlayer?.position == doroPlayer?.duration ){
+
+            doroPlayer?.play()
+        }
+            else
+         {
             //avPlayer?.stop()
-            doroPlayer?.release()
-            doroPlayer = null
+            doroPlayer?.restart()
         }
     }
 
@@ -125,7 +132,7 @@ class PlayerTextureView @JvmOverloads constructor(
     }
 
     override fun start() {
-        playOrStop()
+        playOrRestart()
     }
 
     override fun stop() {
@@ -133,7 +140,7 @@ class PlayerTextureView @JvmOverloads constructor(
     }
 
     override fun pause() {
-        TODO("Not yet implemented")
+        doroPlayer?.pause()
     }
 
     override fun seekTo(seekTime: Int) {
@@ -143,5 +150,9 @@ class PlayerTextureView @JvmOverloads constructor(
     override fun release() {
         TODO("Not yet implemented")
     }
+
+    fun getDuration () = doroPlayer?.duration?.toInt() ?: 0
+
+
 
 }
