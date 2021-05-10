@@ -10,7 +10,7 @@
         android:id="@+id/txt_doro"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="DoroPlayer"
+        android:text="goddoro player"
         android:textColor="@color/black"
         android:textSize="16dp"
         android:layout_marginTop="10dp"
@@ -21,7 +21,7 @@
     <com.goddoro.player.view.PlayerView
         android:id="@+id/customView"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
+        android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         app:layout_constraintTop_toBottomOf="@id/txt_doro"
         app:layout_constraintHeight_percent="0.4"/>
@@ -29,6 +29,7 @@
         android:id="@+id/txt_exo"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:visibility="gone"
         android:layout_marginTop="10dp"
         android:text="ExoPlayer"
         android:textColor="@color/black"
@@ -40,6 +41,7 @@
         android:layout_marginTop="10dp"
         android:layout_width="match_parent"
         android:layout_height="0dp"
+        android:visibility="gone"
         app:layout_constraintHeight_percent="0.4"
         app:layout_constraintTop_toBottomOf="@+id/txt_exo"/>
 
