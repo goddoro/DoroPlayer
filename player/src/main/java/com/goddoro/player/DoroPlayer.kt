@@ -1,5 +1,4 @@
 import android.content.Context
-import android.graphics.SurfaceTexture
 import android.media.*
 import android.os.Handler
 import android.os.HandlerThread
@@ -7,16 +6,14 @@ import android.os.SystemClock
 import android.util.Log
 import android.view.Surface
 import androidx.lifecycle.MutableLiveData
+import com.goddoro.player.extensions.debugE
 import com.goddoro.player.extensions.firstAudioTrack
 import com.goddoro.player.extensions.firstVideoTrack
 import java.nio.ByteBuffer
 import java.util.*
-import java.util.Collections.max
-import java.util.Collections.min
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.CyclicBarrier
-import java.util.concurrent.TimeUnit
 import kotlin.math.max
 import kotlin.math.min
 
@@ -25,6 +22,8 @@ import kotlin.math.min
  */
 
 class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, val context : Context) {
+
+    private val TAG = DoroPlayer::class.java.simpleName
 
     enum class SeekMode {
         PREVIOUS_SYNC,
@@ -169,6 +168,8 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, v
         videoOutEos = false
         startTimeMs = -1L
 
+
+
         audioDecoder.start()
         videoDecoder.start()
         audioFrameQueue.clear()
@@ -181,7 +182,7 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, v
     }
 
     private fun postExtractAudio(delayMillis: Long) {
-        Log.d("TEST","postExtractAudio")
+        Log.d(TAG,"postExtractAudio")
         demuxHandler.postDelayed({
             if (!audioInEos) {
                 when (val inputIndex = audioDecoder.dequeueInputBuffer(0)) {
@@ -209,7 +210,7 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, v
     }
 
     private fun postDecodeAudio(delayMillis: Long) {
-        Log.d("TEST","postDecodeAudio")
+        Log.d(TAG,"postDecodeAudio")
         audioDecodeHandler.postDelayed({
             if (!audioOutEos) {
                 when (val outputIndex = audioDecoder.dequeueOutputBuffer(audioBufferInfo, 0)) {
@@ -242,7 +243,7 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, v
     }
 
     private fun postExtractVideo(delayMillis: Long) {
-        Log.d("TEST","postExtractVideo")
+        Log.d(TAG,"postExtractVideo")
         demuxHandler.postDelayed({
             if (!videoInEos) {
                 when (val inputIndex = videoDecoder.dequeueInputBuffer(0)) {
@@ -270,6 +271,8 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, v
     }
 
     private fun postDecodeVideo(delayMillis: Long) {
+
+        debugE(TAG, "postDecodeVideo")
         videoDecodeHandler.postDelayed({
             if (!videoOutEos) {
                 when (val outputIndex = videoDecoder.dequeueOutputBuffer(videoBufferInfo, 0)) {
@@ -297,22 +300,10 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, v
         }, delayMillis)
     }
 
-    private fun postRenderAudio(audioFrame: AudioFrame, delayMillis: Long) {
-        audioRenderHandler.postDelayed({
-            if (audioTrack.playState != AudioTrack.PLAYSTATE_PLAYING) {
-                audioTrack.play()
-            }
-
-            Log.d("TEST", "[${SystemClock.uptimeMillis() - startTimeMs}] audio render ${audioFrame.ptsUs / 1000}, ${audioFrame.bufferId}")
-
-            val size = audioFrame.data.remaining()
-            audioTrack.write(audioFrame.data, size, AudioTrack.WRITE_NON_BLOCKING)
-
-            audioDecoder.releaseOutputBuffer(audioFrame.bufferId, false)
-        }, delayMillis)
-    }
 
     private fun postRenderAudioAtTime(audioFrame: AudioFrame, uptimeMillis: Long) {
+
+        debugE(TAG, "postRenderAudioAtTime")
         audioRenderHandler.postAtTime({
             if (audioTrack.playState != AudioTrack.PLAYSTATE_PLAYING) {
                 audioTrack.play()
@@ -327,37 +318,30 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, v
         }, uptimeMillis)
     }
 
-    private fun postRenderVideo(videoFrame: VideoFrame, delayMillis: Long) {
-        videoRenderHandler.postDelayed({
-            Log.d("TEST", "[${SystemClock.uptimeMillis() - startTimeMs}] video render ${videoFrame.ptsUs / 1000}, ${videoFrame.bufferId}")
-            videoDecoder.releaseOutputBuffer(videoFrame.bufferId, true)
-        }, delayMillis)
-    }
 
     private fun postRenderVideoAtTime(videoFrame: VideoFrame, uptimeMillis: Long) {
+
+        debugE(TAG, "postRenderVideoAtTime")
         videoRenderHandler.postAtTime({
             renderCount++
-
-            Log.d("GOOD","RENDER COUNT = ${videoFrame.ptsUs}")
-
-            Log.d("TEST", "[${SystemClock.uptimeMillis() - startTimeMs}] video render ${videoFrame.ptsUs / 1000}, ${videoFrame.bufferId}")
             videoDecoder.releaseOutputBuffer(videoFrame.bufferId, true)
         }, uptimeMillis)
     }
 
     private fun queueAudio(data: ByteBuffer, bufferId: Int, ptsUs: Long) {
-        Log.d("TEST", "queueAudio: $bufferId, $ptsUs")
+        Log.d(TAG, "queueAudio: $bufferId, $ptsUs")
         audioFrameQueue.add(AudioFrame(data, bufferId, ptsUs))
         postSyncAudioVideo(0)
     }
 
     private fun queueVideo(bufferId: Int, ptsUs: Long) {
-        Log.d("TEST", "queueVideo: $bufferId, $ptsUs")
+        Log.d(TAG, "queueVideo: $bufferId, $ptsUs")
         videoFrameQueue.add(VideoFrame(bufferId, ptsUs))
         postSyncAudioVideo(0)
     }
 
     private fun postSyncAudioVideo(delayMillis: Long) {
+        debugE(TAG, "postSyndAudioVideo")
         syncHandler.postDelayed({
             val curTimeMs = SystemClock.uptimeMillis()
 
@@ -447,72 +431,18 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, v
 
     fun pause() = synchronized(this) {
 
-        isPlayingVideo.value = false
-        val barrier = CyclicBarrier(6)
-        val latch = CountDownLatch(6)
-
-        Log.d("TEST","PAUSE BEFORE AUDIO " + audioRenderHandler.looper.queue.isIdle)
-        Log.d("TEST","PAUSE BEFPRE VIDEO " + videoRenderHandler.looper.queue.isIdle)
-
-        demuxHandler.postAtFrontOfQueue {
-            barrier.await()
-            demuxHandler.removeCallbacksAndMessages(null)
-            latch.countDown()
-        }
-        audioDecodeHandler.postAtFrontOfQueue {
-            barrier.await()
-            audioDecodeHandler.removeCallbacksAndMessages(null)
-            latch.countDown()
-        }
-        videoDecodeHandler.postAtFrontOfQueue {
-            barrier.await()
-            videoDecodeHandler.removeCallbacksAndMessages(null)
-            latch.countDown()
-        }
-        syncHandler.postAtFrontOfQueue {
-            barrier.await()
-            syncHandler.removeCallbacksAndMessages(null)
-            latch.countDown()
-        }
-        audioRenderHandler.postAtFrontOfQueue {
-            barrier.await()
-            audioRenderHandler.removeCallbacksAndMessages(null)
-            latch.countDown()
-        }
-        videoRenderHandler.postAtFrontOfQueue {
-            barrier.await()
-            videoRenderHandler.removeCallbacksAndMessages(null)
-            latch.countDown()
-        }
-
-        latch.await()
-
-        videoDecoder.flush()
-        audioDecoder.flush()
-        Log.d("TEST","PAUSE AUDIO " + audioRenderHandler.looper.queue.isIdle)
-        Log.d("TEST","PAUSE VIDEO " + videoRenderHandler.looper.queue.isIdle)
-//        audioTrack.pause()
-//        audioTrack.flush()
-//
-//        audioFrameQueue.clear()
-//        videoFrameQueue.clear()
-
-        Log.d("TEST", "demux count = $demuxCount")
-        Log.d("TEST", "decode count = $decodeCount")
-        Log.d("TEST","render count = $renderCount")
-
+        demuxHandler.removeCallbacksAndMessages(null)
+        audioDecodeHandler.removeCallbacksAndMessages(null)
+        videoDecodeHandler.removeCallbacksAndMessages(null)
+//        syncHandler.removeCallbacksAndMessages(null)
+//        audioRenderHandler.removeCallbacksAndMessages(null)
+//        videoRenderHandler.removeCallbacksAndMessages(null)
 
 
     }
 
     fun restart() = synchronized(this) {
 
-
-//        val curPosition = (SystemClock.currentThreadTimeMillis() - startTimeMs) * 1000
-
-//        audioFrameQueue.clear()
-//        videoFrameQueue.clear()
-//
         startTimeMs = -1L
 
         postExtractAudio(0)

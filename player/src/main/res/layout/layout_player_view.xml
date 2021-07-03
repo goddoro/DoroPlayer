@@ -20,7 +20,6 @@
             android:id="@+id/btn_play"
             android:layout_width="50dp"
             android:layout_height="50dp"
-            android:visibility="gone"
             android:src="@drawable/ic_play"
 
             app:layout_constraintStart_toStartOf="parent"
@@ -30,7 +29,6 @@
 
         <ImageView
             android:id="@+id/btn_pause"
-            android:visibility="gone"
             android:layout_width="50dp"
             android:layout_height="50dp"
             android:src="@drawable/ic_pause"

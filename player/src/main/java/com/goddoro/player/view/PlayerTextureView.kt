@@ -11,6 +11,7 @@ import android.view.Surface
 import android.view.TextureView
 import com.goddoro.player.CommonConst.SAMPLE_FILE_URL
 import com.goddoro.player.controller.DoroPlayController
+import com.goddoro.player.extensions.debugE
 
 /**
  * Created by goddoro on 2021-03-24.
@@ -21,6 +22,8 @@ class PlayerTextureView @JvmOverloads constructor(
     attrs: AttributeSet? = null,
     defStyle: Int = 0
 ) : TextureView(context, attrs, defStyle), DoroPlayController {
+
+    private val TAG = PlayerTextureView::class.java.simpleName
 
     private var ratioWidth = 0
     private var ratioHeight = 0
@@ -76,14 +79,17 @@ class PlayerTextureView @JvmOverloads constructor(
                 MediaExtractor().apply { setDataSource(SAMPLE_FILE_URL) }
             }, surface, context)
 
+            debugE(TAG< "PLAY")
             doroPlayer?.play()
         }
         else if ( doroPlayer?.position == doroPlayer?.duration ){
 
+            debugE(TAG, "PLAY")
             doroPlayer?.play()
         }
             else
          {
+             debugE(TAG, "RESTART")
             //avPlayer?.stop()
             doroPlayer?.restart()
         }
