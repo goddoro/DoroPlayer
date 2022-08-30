@@ -21,15 +21,8 @@ import kotlin.math.min
  * Created by goddoro on 2021-03-24.
  */
 
-class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface, val context : Context) {
+class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
 
-    private val TAG = DoroPlayer::class.java.simpleName
-
-    enum class SeekMode {
-        PREVIOUS_SYNC,
-        NEXT_SYNC,
-        CLOSEST_SYNC
-    }
     private val audioExtractor: MediaExtractor
     private val videoExtractor: MediaExtractor
     private val audioTrackIndex: Int

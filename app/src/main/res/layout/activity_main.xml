@@ -21,11 +21,10 @@
 
         <com.goddoro.player.view.PlayerView
             android:id="@+id/customView"
-            android:layout_width="match_parent"
-            android:layout_height="300dp"
-            android:layout_marginTop="10dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             app:layout_constraintTop_toBottomOf="@id/txt_doro"
-            app:layout_constraintHeight_percent="0.4"/>
+            app:layout_constraintStart_toStartOf="@id/txt_doro"/>
 
 
     </androidx.constraintlayout.widget.ConstraintLayout>

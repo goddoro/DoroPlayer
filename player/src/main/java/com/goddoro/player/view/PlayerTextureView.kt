@@ -4,12 +4,10 @@ import DoroPlayer
 import android.content.Context
 import android.graphics.SurfaceTexture
 import android.media.MediaExtractor
-import android.media.MediaSync
 import android.util.AttributeSet
-import android.util.Log
 import android.view.Surface
 import android.view.TextureView
-import com.goddoro.player.CommonConst.SAMPLE_FILE_URL
+import com.goddoro.player.R
 import com.goddoro.player.controller.DoroPlayController
 import com.goddoro.player.extensions.debugE
 
@@ -66,8 +64,8 @@ class PlayerTextureView @JvmOverloads constructor(
 
     private fun initPlayer( ) {
         doroPlayer = DoroPlayer({
-            MediaExtractor().apply { setDataSource(SAMPLE_FILE_URL) }
-        }, surface, context)
+            MediaExtractor().apply { setDataSource(context.resources.openRawResourceFd(R.raw.jiyoung)) }
+        }, surface)
 
         doroPlayer?.play()
 
@@ -76,8 +74,8 @@ class PlayerTextureView @JvmOverloads constructor(
     private fun playOrRestart( ) {
         if (doroPlayer == null) {
             doroPlayer = DoroPlayer({
-                MediaExtractor().apply { setDataSource(SAMPLE_FILE_URL) }
-            }, surface, context)
+                MediaExtractor().apply { setDataSource(context.resources.openRawResourceFd(R.raw.jiyoung)) }
+            }, surface)
 
             debugE(TAG< "PLAY")
             doroPlayer?.play()
