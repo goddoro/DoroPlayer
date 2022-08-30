@@ -1,19 +1,17 @@
-import android.content.Context
 import android.media.*
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.SystemClock
-import android.util.Log
 import android.view.Surface
-import androidx.lifecycle.MutableLiveData
-import com.goddoro.player.extensions.debugE
 import com.goddoro.player.extensions.firstAudioTrack
 import com.goddoro.player.extensions.firstVideoTrack
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.CyclicBarrier
 import kotlin.math.max
 import kotlin.math.min
 
@@ -36,6 +34,7 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
     private var videoOutEos = false
     private val audioBufferInfo = MediaCodec.BufferInfo()
     private val videoBufferInfo = MediaCodec.BufferInfo()
+    private val demuxCoroutineScope = CoroutineScope(Dispatchers.Default)
 
 
     var demuxCount = 0
@@ -83,13 +82,11 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
                 .build()
     }
 
-    private val demuxThread = HandlerThread("DemuxThread").apply { start() }
     private val audioDecodeThread = HandlerThread("AudioDecodeThread").apply { start() }
     private val videoDecodeThread = HandlerThread("VideoDecodeThread").apply { start() }
     private val syncThread = HandlerThread("SyncThread").apply { start() }
     private val audioRenderThread = HandlerThread("AudioRenderThread").apply { start() }
     private val videoRenderThread = HandlerThread("VideoRenderThread").apply { start() }
-    private val demuxHandler = Handler(demuxThread.looper)
     private val audioDecodeHandler = Handler(audioDecodeThread.looper)
     private val videoDecodeHandler = Handler(videoDecodeThread.looper)
     private val syncHandler = Handler(syncThread.looper)
@@ -165,7 +162,7 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
     }
 
     private fun postExtractAudio(delayMillis: Long) {
-        demuxHandler.postDelayed({
+        demuxCoroutineScope.launch {
             if (!audioInEos) {
                 when (val inputIndex = audioDecoder.dequeueInputBuffer(0)) {
                     in 0..Int.MAX_VALUE -> {
@@ -173,13 +170,17 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
                         val inputBuffer = audioDecoder.getInputBuffer(inputIndex)!!
                         val chunkSize = audioExtractor.readSampleData(inputBuffer, 0)
                         if (chunkSize < 0) {
-                            audioDecoder.queueInputBuffer(inputIndex, 0, 0, -1,
-                                    MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                            audioDecoder.queueInputBuffer(
+                                inputIndex, 0, 0, -1,
+                                MediaCodec.BUFFER_FLAG_END_OF_STREAM
+                            )
                             audioInEos = true
                         } else {
                             val sampleTimeUs = audioExtractor.sampleTime
-                            audioDecoder.queueInputBuffer(inputIndex, 0, chunkSize,
-                                    sampleTimeUs, 0)
+                            audioDecoder.queueInputBuffer(
+                                inputIndex, 0, chunkSize,
+                                sampleTimeUs, 0
+                            )
                             audioExtractor.advance()
                         }
 
@@ -188,7 +189,8 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
                     else -> postExtractAudio(10)
                 }
             }
-        }, delayMillis)
+            delay(delayMillis)
+        }
     }
 
     private fun postDecodeAudio(delayMillis: Long) {
@@ -224,7 +226,7 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
     }
 
     private fun postExtractVideo(delayMillis: Long) {
-        demuxHandler.postDelayed({
+        demuxCoroutineScope.launch {
             if (!videoInEos) {
                 when (val inputIndex = videoDecoder.dequeueInputBuffer(0)) {
                     in 0..Int.MAX_VALUE -> {
@@ -232,13 +234,17 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
                         val inputBuffer = videoDecoder.getInputBuffer(inputIndex)!!
                         val chunkSize = videoExtractor.readSampleData(inputBuffer, 0)
                         if (chunkSize < 0) {
-                            videoDecoder.queueInputBuffer(inputIndex, 0, 0, -1,
-                                    MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                            videoDecoder.queueInputBuffer(
+                                inputIndex, 0, 0, -1,
+                                MediaCodec.BUFFER_FLAG_END_OF_STREAM
+                            )
                             videoInEos = true
                         } else {
                             val sampleTimeUs = videoExtractor.sampleTime
-                            videoDecoder.queueInputBuffer(inputIndex, 0, chunkSize,
-                                    sampleTimeUs, 0)
+                            videoDecoder.queueInputBuffer(
+                                inputIndex, 0, chunkSize,
+                                sampleTimeUs, 0
+                            )
                             videoExtractor.advance()
                         }
 
@@ -247,7 +253,8 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
                     else -> postExtractVideo(10)
                 }
             }
-        }, delayMillis)
+            delay(delayMillis)
+        }
     }
 
     private fun postDecodeVideo(delayMillis: Long) {
@@ -358,7 +365,6 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
     }
 
     fun pause() = synchronized(this) {
-        demuxHandler.removeCallbacksAndMessages(null)
         audioDecodeHandler.removeCallbacksAndMessages(null)
         videoDecodeHandler.removeCallbacksAndMessages(null)
     }
