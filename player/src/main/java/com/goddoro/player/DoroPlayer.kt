@@ -35,6 +35,8 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
     private val audioBufferInfo = MediaCodec.BufferInfo()
     private val videoBufferInfo = MediaCodec.BufferInfo()
     private val demuxCoroutineScope = CoroutineScope(Dispatchers.Default)
+    private val audioDecodeCoroutineScope = CoroutineScope(Dispatchers.Default)
+    private val videoDecodeCoroutineScope = CoroutineScope(Dispatchers.Default)
 
 
     var demuxCount = 0
@@ -82,13 +84,9 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
                 .build()
     }
 
-    private val audioDecodeThread = HandlerThread("AudioDecodeThread").apply { start() }
-    private val videoDecodeThread = HandlerThread("VideoDecodeThread").apply { start() }
     private val syncThread = HandlerThread("SyncThread").apply { start() }
     private val audioRenderThread = HandlerThread("AudioRenderThread").apply { start() }
     private val videoRenderThread = HandlerThread("VideoRenderThread").apply { start() }
-    private val audioDecodeHandler = Handler(audioDecodeThread.looper)
-    private val videoDecodeHandler = Handler(videoDecodeThread.looper)
     private val syncHandler = Handler(syncThread.looper)
     private val audioRenderHandler = Handler(audioRenderThread.looper)
     private val videoRenderHandler = Handler(videoRenderThread.looper)
@@ -194,7 +192,7 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
     }
 
     private fun postDecodeAudio(delayMillis: Long) {
-        audioDecodeHandler.postDelayed({
+        audioDecodeCoroutineScope.launch{
             if (!audioOutEos) {
                 when (val outputIndex = audioDecoder.dequeueOutputBuffer(audioBufferInfo, 0)) {
                     in 0..Int.MAX_VALUE -> {
@@ -211,7 +209,7 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
                         }
 
                         postDecodeAudio(0)
-                        return@postDelayed
+                        return@launch
                     }
                     MediaCodec.INFO_TRY_AGAIN_LATER -> Unit
                     MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> Unit
@@ -222,7 +220,8 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
 
                 postDecodeAudio(10)
             }
-        }, delayMillis)
+            delay(delayMillis)
+        }
     }
 
     private fun postExtractVideo(delayMillis: Long) {
@@ -258,7 +257,7 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
     }
 
     private fun postDecodeVideo(delayMillis: Long) {
-        videoDecodeHandler.postDelayed({
+        videoDecodeCoroutineScope.launch{
             if (!videoOutEos) {
                 when (val outputIndex = videoDecoder.dequeueOutputBuffer(videoBufferInfo, 0)) {
                     in 0..Int.MAX_VALUE -> {
@@ -271,7 +270,7 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
                         }
 
                         postDecodeVideo(0)
-                        return@postDelayed
+                        return@launch
                     }
                     MediaCodec.INFO_TRY_AGAIN_LATER -> Unit
                     MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> Unit
@@ -282,7 +281,8 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
 
                 postDecodeVideo(10)
             }
-        }, delayMillis)
+            delay(delayMillis)
+        }
     }
 
 
@@ -365,8 +365,7 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
     }
 
     fun pause() = synchronized(this) {
-        audioDecodeHandler.removeCallbacksAndMessages(null)
-        videoDecodeHandler.removeCallbacksAndMessages(null)
+
     }
 
     fun restart() = synchronized(this) {
