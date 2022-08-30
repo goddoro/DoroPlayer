@@ -37,6 +37,7 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
     private val demuxCoroutineScope = CoroutineScope(Dispatchers.Default)
     private val audioDecodeCoroutineScope = CoroutineScope(Dispatchers.Default)
     private val videoDecodeCoroutineScope = CoroutineScope(Dispatchers.Default)
+    private val syncCoroutineScope = CoroutineScope(Dispatchers.Main)
 
     init {
         val extractor = extractorSupplier()
@@ -79,15 +80,13 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
                 .build()
     }
 
-    private val syncThread = HandlerThread("SyncThread").apply { start() }
     private val audioRenderThread = HandlerThread("AudioRenderThread").apply { start() }
     private val videoRenderThread = HandlerThread("VideoRenderThread").apply { start() }
-    private val syncHandler = Handler(syncThread.looper)
     private val audioRenderHandler = Handler(audioRenderThread.looper)
     private val videoRenderHandler = Handler(videoRenderThread.looper)
 
-    private val audioFrameQueue: Queue<AudioFrame> = ConcurrentLinkedQueue<AudioFrame>()
-    private val videoFrameQueue: Queue<VideoFrame> = ConcurrentLinkedQueue<VideoFrame>()
+    private val audioFrameQueue: Queue<AudioFrame> = ConcurrentLinkedQueue()
+    private val videoFrameQueue: Queue<VideoFrame> = ConcurrentLinkedQueue()
     private var startTimeMs = -1L
 
     /**
@@ -312,25 +311,24 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
     }
 
     private fun postSyncAudioVideo(delayMillis: Long) {
-        syncHandler.postDelayed({
+        syncCoroutineScope.launch{
+            delay(delayMillis)
             val curTimeMs = SystemClock.uptimeMillis()
 
             val audioFrame: AudioFrame? = audioFrameQueue.peek()
             val videoFrame: VideoFrame? = videoFrameQueue.peek()
 
             if (audioFrame == null && videoFrame == null) {
-                return@postDelayed
+                return@launch
             }
 
             if (startTimeMs < 0) {
                 if (audioFrame == null || videoFrame == null) {
-                    return@postDelayed
+                    return@launch
                 }
 
                 val startPtsUs = min(audioFrame.ptsUs, videoFrame.ptsUs)
                 startTimeMs = curTimeMs - startPtsUs / 1000L
-                val audioDelayMs = audioFrame.ptsUs / 1000L - (curTimeMs - startTimeMs)
-                val videoDelayMs = videoFrame.ptsUs / 1000L - (curTimeMs - startTimeMs)
             }
 
             if (audioFrame != null) {
@@ -355,7 +353,7 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
             } else {
                 postSyncAudioVideo(10)
             }
-        }, delayMillis)
+        }
     }
 
     fun pause() = synchronized(this) {
