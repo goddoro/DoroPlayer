@@ -147,13 +147,13 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
         audioFrameQueue.clear()
         videoFrameQueue.clear()
 
-        postExtractAudio(0)
-        postExtractVideo(0)
-        postDecodeAudio(0)
-        postDecodeVideo(0)
+        extractAudioTrack(0)
+        extractVideoTrack(0)
+        decodeAudioTrack(0)
+        decodeVideoTrack(0)
     }
 
-    private fun postExtractAudio(delayMillis: Long) {
+    private fun extractAudioTrack(delayMillis: Long) {
         demuxCoroutineScope.launch {
             delay(delayMillis)
             if (!audioInEos) {
@@ -177,15 +177,15 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
                             audioExtractor.advance()
                         }
 
-                        postExtractAudio(0)
+                        extractAudioTrack(0)
                     }
-                    else -> postExtractAudio(10)
+                    else -> extractAudioTrack(10)
                 }
             }
         }
     }
 
-    private fun postDecodeAudio(delayMillis: Long) {
+    private fun decodeAudioTrack(delayMillis: Long) {
         audioDecodeCoroutineScope.launch{
             delay(delayMillis)
             if (!audioOutEos) {
@@ -203,7 +203,7 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
                                     audioBufferInfo.presentationTimeUs)
                         }
 
-                        postDecodeAudio(0)
+                        decodeAudioTrack(0)
                         return@launch
                     }
                     MediaCodec.INFO_TRY_AGAIN_LATER -> Unit
@@ -213,13 +213,13 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
                             "decoder.dequeueOutputBuffer: $outputIndex")
                 }
 
-                postDecodeAudio(10)
+                decodeAudioTrack(10)
             }
 
         }
     }
 
-    private fun postExtractVideo(delayMillis: Long) {
+    private fun extractVideoTrack(delayMillis: Long) {
         demuxCoroutineScope.launch {
             delay(delayMillis)
             if (!videoInEos) {
@@ -242,16 +242,16 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
                             videoExtractor.advance()
                         }
 
-                        postExtractVideo(0)
+                        extractVideoTrack(0)
                     }
-                    else -> postExtractVideo(10)
+                    else -> extractVideoTrack(10)
                 }
             }
 
         }
     }
 
-    private fun postDecodeVideo(delayMillis: Long) {
+    private fun decodeVideoTrack(delayMillis: Long) {
         videoDecodeCoroutineScope.launch{
             delay(delayMillis)
             if (!videoOutEos) {
@@ -264,7 +264,7 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
                             queueVideo(outputIndex, videoBufferInfo.presentationTimeUs)
                         }
 
-                        postDecodeVideo(0)
+                        decodeVideoTrack(0)
                         return@launch
                     }
                     MediaCodec.INFO_TRY_AGAIN_LATER -> Unit
@@ -274,13 +274,13 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
                             "decoder.dequeueOutputBuffer: $outputIndex")
                 }
 
-                postDecodeVideo(10)
+                decodeVideoTrack(10)
             }
         }
     }
 
 
-    private fun postRenderAudioAtTime(audioFrame: AudioFrame, uptimeMillis: Long) {
+    private fun renderAudioAtTime(audioFrame: AudioFrame, uptimeMillis: Long) {
         audioRenderHandler.postAtTime({
             if (audioTrack.playState != AudioTrack.PLAYSTATE_PLAYING) {
                 audioTrack.play()
@@ -294,7 +294,7 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
     }
 
 
-    private fun postRenderVideoAtTime(videoFrame: VideoFrame, uptimeMillis: Long) {
+    private fun renderVideoAtTime(videoFrame: VideoFrame, uptimeMillis: Long) {
         videoRenderHandler.postAtTime({
             videoDecoder.releaseOutputBuffer(videoFrame.bufferId, true)
         }, uptimeMillis)
@@ -302,15 +302,15 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
 
     private fun queueAudio(data: ByteBuffer, bufferId: Int, ptsUs: Long) {
         audioFrameQueue.add(AudioFrame(data, bufferId, ptsUs))
-        postSyncAudioVideo(0)
+        syncVideoAndAudio(0)
     }
 
     private fun queueVideo(bufferId: Int, ptsUs: Long) {
         videoFrameQueue.add(VideoFrame(bufferId, ptsUs))
-        postSyncAudioVideo(0)
+        syncVideoAndAudio(0)
     }
 
-    private fun postSyncAudioVideo(delayMillis: Long) {
+    private fun syncVideoAndAudio(delayMillis: Long) {
         syncCoroutineScope.launch{
             delay(delayMillis)
             val curTimeMs = SystemClock.uptimeMillis()
@@ -333,14 +333,14 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
 
             if (audioFrame != null) {
                 val renderTimeMs = startTimeMs + audioFrame.ptsUs / 1000L
-                postRenderAudioAtTime(audioFrame, renderTimeMs)
+                renderAudioAtTime(audioFrame, renderTimeMs)
                 audioFrameQueue.remove()
             }
 
             if (videoFrame != null) {
                 val renderTimeMs = startTimeMs + videoFrame.ptsUs / 1000L
                 if (renderTimeMs >= curTimeMs) {
-                    postRenderVideoAtTime(videoFrame, renderTimeMs)
+                    renderVideoAtTime(videoFrame, renderTimeMs)
                 } else {
                     videoDecoder.releaseOutputBuffer(videoFrame.bufferId, false)
                 }
@@ -349,9 +349,9 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
             }
 
             if (!audioFrameQueue.isEmpty() || !videoFrameQueue.isEmpty()) {
-                postSyncAudioVideo(0)
+                syncVideoAndAudio(0)
             } else {
-                postSyncAudioVideo(10)
+                syncVideoAndAudio(10)
             }
         }
     }
@@ -364,10 +364,10 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
 
         startTimeMs = -1L
 
-        postExtractAudio(0)
-        postExtractVideo(0)
-        postDecodeAudio(0)
-        postDecodeVideo(0)
+        extractAudioTrack(0)
+        extractVideoTrack(0)
+        decodeAudioTrack(0)
+        decodeVideoTrack(0)
 
     }
 
