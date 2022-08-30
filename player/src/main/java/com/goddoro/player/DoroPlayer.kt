@@ -38,11 +38,6 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
     private val audioDecodeCoroutineScope = CoroutineScope(Dispatchers.Default)
     private val videoDecodeCoroutineScope = CoroutineScope(Dispatchers.Default)
 
-
-    var demuxCount = 0
-    var decodeCount = 0
-    var renderCount = 0
-
     init {
         val extractor = extractorSupplier()
         val audioTrackIndex = extractor.firstAudioTrack
@@ -229,7 +224,6 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
             if (!videoInEos) {
                 when (val inputIndex = videoDecoder.dequeueInputBuffer(0)) {
                     in 0..Int.MAX_VALUE -> {
-                        demuxCount++
                         val inputBuffer = videoDecoder.getInputBuffer(inputIndex)!!
                         val chunkSize = videoExtractor.readSampleData(inputBuffer, 0)
                         if (chunkSize < 0) {
@@ -265,7 +259,6 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
                             videoDecoder.releaseOutputBuffer(outputIndex, false)
                             videoOutEos = true
                         } else {
-                            decodeCount++
                             queueVideo(outputIndex, videoBufferInfo.presentationTimeUs)
                         }
 
@@ -302,7 +295,6 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
 
     private fun postRenderVideoAtTime(videoFrame: VideoFrame, uptimeMillis: Long) {
         videoRenderHandler.postAtTime({
-            renderCount++
             videoDecoder.releaseOutputBuffer(videoFrame.bufferId, true)
         }, uptimeMillis)
     }
