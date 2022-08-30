@@ -1,49 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    tools:context=".MainActivity">
-
-    <TextView
-        android:id="@+id/txt_doro"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="goddoro player"
-        android:textColor="@color/black"
-        android:textSize="16dp"
-        android:layout_marginTop="10dp"
-        android:layout_marginStart="10dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"/>
-
-    <com.goddoro.player.view.PlayerView
-        android:id="@+id/customView"
+<layout>
+    <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        app:layout_constraintTop_toBottomOf="@id/txt_doro"
-        app:layout_constraintHeight_percent="0.4"/>
-    <TextView
-        android:id="@+id/txt_exo"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        android:layout_marginTop="10dp"
-        android:text="ExoPlayer"
-        android:textColor="@color/black"
-        app:layout_constraintStart_toStartOf="@+id/txt_doro"
-        app:layout_constraintTop_toBottomOf="@+id/customView"/>
+        android:layout_height="match_parent"
+        tools:context=".MainActivity">
 
-    <com.google.android.exoplayer2.ui.PlayerView
-        android:id="@+id/playerView"
-        android:layout_marginTop="10dp"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:visibility="gone"
-        app:layout_constraintHeight_percent="0.4"
-        app:layout_constraintTop_toBottomOf="@+id/txt_exo"/>
+        <TextView
+            android:id="@+id/txt_doro"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="goddoro player"
+            android:textColor="@color/black"
+            android:textSize="16dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginStart="10dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"/>
+
+        <com.goddoro.player.view.PlayerView
+            android:id="@+id/customView"
+            android:layout_width="match_parent"
+            android:layout_height="300dp"
+            android:layout_marginTop="10dp"
+            app:layout_constraintTop_toBottomOf="@id/txt_doro"
+            app:layout_constraintHeight_percent="0.4"/>
 
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</layout>

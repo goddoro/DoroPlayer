@@ -7,5 +7,5 @@ package com.goddoro.player
 object CommonConst {
 
 
-    val SAMPLE_FILE_URL = "https://cdn.onesongtwoshows.com/video/ty2h2kqfgl8_1615804303890.mp4"
+    val SAMPLE_FILE_URL = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
 }
