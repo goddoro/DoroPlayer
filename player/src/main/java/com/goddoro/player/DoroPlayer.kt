@@ -156,6 +156,7 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
 
     private fun postExtractAudio(delayMillis: Long) {
         demuxCoroutineScope.launch {
+            delay(delayMillis)
             if (!audioInEos) {
                 when (val inputIndex = audioDecoder.dequeueInputBuffer(0)) {
                     in 0..Int.MAX_VALUE -> {
@@ -182,12 +183,12 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
                     else -> postExtractAudio(10)
                 }
             }
-            delay(delayMillis)
         }
     }
 
     private fun postDecodeAudio(delayMillis: Long) {
         audioDecodeCoroutineScope.launch{
+            delay(delayMillis)
             if (!audioOutEos) {
                 when (val outputIndex = audioDecoder.dequeueOutputBuffer(audioBufferInfo, 0)) {
                     in 0..Int.MAX_VALUE -> {
@@ -215,12 +216,13 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
 
                 postDecodeAudio(10)
             }
-            delay(delayMillis)
+
         }
     }
 
     private fun postExtractVideo(delayMillis: Long) {
         demuxCoroutineScope.launch {
+            delay(delayMillis)
             if (!videoInEos) {
                 when (val inputIndex = videoDecoder.dequeueInputBuffer(0)) {
                     in 0..Int.MAX_VALUE -> {
@@ -246,12 +248,13 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
                     else -> postExtractVideo(10)
                 }
             }
-            delay(delayMillis)
+
         }
     }
 
     private fun postDecodeVideo(delayMillis: Long) {
         videoDecodeCoroutineScope.launch{
+            delay(delayMillis)
             if (!videoOutEos) {
                 when (val outputIndex = videoDecoder.dequeueOutputBuffer(videoBufferInfo, 0)) {
                     in 0..Int.MAX_VALUE -> {
@@ -274,7 +277,6 @@ class DoroPlayer ( extractorSupplier: () -> MediaExtractor, surface : Surface) {
 
                 postDecodeVideo(10)
             }
-            delay(delayMillis)
         }
     }
 
